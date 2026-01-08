@@ -1,0 +1,5 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">FindYourFlower</string>
+    <string name="about_app" tools:ignore="ExtraTranslation" translatable="false">About This App</string>
+    <string name="about" translatable="false"><b>About This App</b>\n \n Welcome to Find Your Flower app, a project developed for my dissertation. This app enables you to identify and classify a variety of 102 flowers commonly found across the United Kingdom, using state-of-the-art machine learning models.\n \n <b>How to Use:</b>\n \n 1.<b>Select Model:</b> Pick a model (MobileNet or VGG) to begin the prediction process.\n \n 2. <b>Capture Image:</b> Use your device\'s camera to capture an image of a flower or choose an existing image from your gallery.\n \n 3. <b>Predict Flower:</b> Our chosen model will analyze the image and provide a prediction for the flower\'s species.\n \n <b>Contact:</b>\n \n For inquiries or feedback, reach out at lp.mscdissertation@gmail.com.\n\n Thank you for using FindYourFlower!\n</string>
+</resources>
