@@ -9,3 +9,6 @@ Python
 java
 Android studio
 Jupyter
+
+
+keep the mobilenet lite model into app/ml 
