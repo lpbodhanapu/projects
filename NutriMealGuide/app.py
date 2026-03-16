@@ -607,6 +607,118 @@ These ranges vary by country and guidelines. Common targets for many adults with
     )
 
 
+def fetch_all_nhs_gp_practices() -> Tuple[List[Dict[str, str]], Optional[str]]:
+    """
+    Fetch GP practices from NHS ODS API. Tries with Limit first, then pagination.
+    Returns (list of practices, error_message or None).
+    """
+    url = "https://directory.spineservices.nhs.uk/ORD/2-0-0/organisations"
+    all_orgs: List[Dict[str, str]] = []
+
+    def parse_orgs(data: dict) -> None:
+        for org in data.get("Organisations", []):
+            all_orgs.append(
+                {
+                    "Name": org.get("Name", ""),
+                    "ODS Code": org.get("OrgId", ""),
+                    "Status": org.get("Status", ""),
+                    "Postcode": org.get("PostCode", ""),
+                    "Details link": org.get("OrgLink", ""),
+                }
+            )
+
+    # First try: single request with Limit only (no Offset) - most reliable
+    try:
+        resp = requests.get(
+            url,
+            params={"PrimaryRoleId": "RO177", "Limit": 1000},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        parse_orgs(data)
+    except Exception as e:
+        return [], str(e)
+
+    # If we got a full page, try to get more with Offset
+    offset = 1000
+    while len(all_orgs) % 1000 == 0 and len(all_orgs) > 0:
+        try:
+            resp = requests.get(
+                url,
+                params={"PrimaryRoleId": "RO177", "Limit": 1000, "Offset": offset},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            batch = data.get("Organisations", [])
+            if not batch:
+                break
+            parse_orgs(data)
+            if len(batch) < 1000:
+                break
+            offset += 1000
+        except Exception:
+            break
+
+    return all_orgs, None
+
+
+def render_gp_finder() -> None:
+    st.title("Find GP Practices in the UK")
+    st.caption(
+        "Powered by NHS Organisation Data Service (open data). "
+        "Load all GP practices across the UK, then filter or download."
+    )
+
+    if "gp_all_list" not in st.session_state:
+        st.session_state["gp_all_list"] = []
+
+    col_name, col_post = st.columns(2)
+    with col_name:
+        name_filter = st.text_input("Filter by practice name (optional)", value="")
+    with col_post:
+        postcode_filter = st.text_input("Filter by postcode (optional)", value="")
+
+    if st.button("Load all GP practices (UK)"):
+        with st.spinner("Fetching GP practices from NHS…"):
+            all_rows, err = fetch_all_nhs_gp_practices()
+            if err:
+                st.error(f"Could not load GP data: {err}")
+            elif not all_rows:
+                st.warning("NHS API returned no practices. Try again later.")
+            else:
+                st.session_state["gp_all_list"] = all_rows
+                st.success(f"Loaded **{len(all_rows)}** GP practices.")
+
+    all_rows = st.session_state["gp_all_list"]
+    if not all_rows:
+        st.info("Click **Load all GP practices (UK)** to fetch every GP practice from the NHS directory.")
+        return
+
+    # Apply filters
+    filtered = all_rows
+    if name_filter:
+        name_lower = name_filter.lower()
+        filtered = [r for r in filtered if name_lower in r["Name"].lower()]
+    if postcode_filter:
+        pc_lower = postcode_filter.lower()
+        filtered = [r for r in filtered if pc_lower in (r["Postcode"] or "").lower()]
+
+    st.metric("GP practices shown", len(filtered))
+    df = pd.DataFrame(filtered)
+    st.dataframe(df, width="stretch", height=400)
+
+    if not df.empty:
+        csv = df.to_csv(index=False)
+        st.download_button(
+            "Download as CSV",
+            data=csv,
+            file_name="nhs_gp_practices_uk.csv",
+            mime="text/csv",
+        )
+
+
 def main() -> None:
     st.set_page_config(
         page_title="Nutri Meal Guide",
@@ -616,14 +728,16 @@ def main() -> None:
 
     page = st.sidebar.radio(
         "Pages",
-        ["Meal planner", "Blood sugar levels & risk"],
+        ["Meal planner", "Blood sugar levels & risk", "Find a GP"],
         index=0,
     )
 
     if page == "Meal planner":
         render_meal_planner()
-    else:
+    elif page == "Blood sugar levels & risk":
         render_glucose_reference()
+    else:
+        render_gp_finder()
 
 
 if __name__ == "__main__":
