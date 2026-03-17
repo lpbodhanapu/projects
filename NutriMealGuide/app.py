@@ -1,46 +1,17 @@
-import math
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
+from nutri_meal_guide.ui.app import main
 import pandas as pd
 import requests
+from typing import Dict, List,Optional,Tuple
+from pathlib import Path
 import streamlit as st
+from nutri_meal_guide.domain import classify_glucose, calculate_bmi
+from nutri_meal_guide.services.glucose_reference_api import fetch_glucose_reference_from_api
+from nutri_meal_guide.services.nhs_ods import fetch_all_nhs_gp_practices
+from nutri_meal_guide.services.spoonacular import fetch_diabetic_friendly_meals
 
-
-BMI_THRESHOLDS = {
-    "underweight": 18.5,
-    "normal": 24.9,
-    "overweight": 29.9,
-}
-
-
-def calculate_bmi(weight_kg: float, height_cm: float) -> Tuple[float, str]:
-    height_m = height_cm / 100.0
-    if height_m <= 0:
-        raise ValueError("Height must be greater than zero.")
-    bmi = weight_kg / (height_m**2)
-    bmi_rounded = round(bmi, 1)
-
-    if bmi_rounded < BMI_THRESHOLDS["underweight"]:
-        category = "Underweight"
-    elif bmi_rounded <= BMI_THRESHOLDS["normal"]:
-        category = "Normal weight"
-    elif bmi_rounded <= BMI_THRESHOLDS["overweight"]:
-        category = "Overweight"
-    else:
-        category = "Obese"
-
-    return bmi_rounded, category
-
-
-def classify_glucose(glucose_mg_dl: float) -> str:
-    if glucose_mg_dl < 70:
-        return "Low (Hypoglycemia risk)"
-    if glucose_mg_dl < 100:
-        return "Normal (fasting)"
-    if glucose_mg_dl < 126:
-        return "Pre-diabetic range"
-    return "Diabetic range"
+if __name__ == "__main__":
+    main()
+from nutri_meal_guide.ui.app import main
 
 
 def get_meal_suggestions(
@@ -669,6 +640,15 @@ def render_gp_finder() -> None:
     st.caption(
         "Powered by NHS Organisation Data Service (open data). "
         "Load all GP practices across the UK, then filter or download."
+    )
+
+    st.markdown(
+        """
+### Need medical guidance?
+If you have questions about your health, diet, diabetes management, or if you think you’re having an **allergic reaction**, use this page to find a nearby GP practice.
+
+If symptoms are severe or getting worse, seek urgent medical help immediately.
+        """
     )
 
     if "gp_all_list" not in st.session_state:
